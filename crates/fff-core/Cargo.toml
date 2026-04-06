@@ -39,7 +39,7 @@ glidesort = { workspace = true }
 globset = { workspace = true }
 fff-grep = { workspace = true  }
 aho-corasick = "1"
-memchr = "2"
+stringzilla = { path = "/Users/neogoose/dev/StringZilla" }
 heed = { workspace = true }
 ignore = { workspace = true }
 memmap2 = { workspace = true }
@@ -58,6 +58,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zlob = { workspace = true, optional = true }
 libmimalloc-sys = { version = "0.1", optional = true, features = ["extended"] }
+memchr = "2.8.0"
 # Platform-specific: dunce for Windows to avoid \\?\ extended path prefix
 [target.'cfg(windows)'.dependencies]
 dunce = { workspace = true }

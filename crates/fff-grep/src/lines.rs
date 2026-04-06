@@ -65,7 +65,15 @@ impl LineStep {
 
 /// Count the number of occurrences of `line_term` in `bytes`.
 pub fn count(bytes: &[u8], line_term: u8) -> u64 {
-    memchr::memchr_iter(line_term, bytes).count() as u64
+    use stringzilla::sz;
+    let bs = sz::Byteset::from_bytes(&[line_term]);
+    let mut count = 0u64;
+    let mut pos = 0usize;
+    while let Some(idx) = sz::find_byteset(&bytes[pos..], bs) {
+        count += 1;
+        pos += idx + 1;
+    }
+    count
 }
 
 /// Given a line that possibly ends with a terminator, return that line without

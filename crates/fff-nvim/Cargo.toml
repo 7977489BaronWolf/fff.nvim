@@ -40,6 +40,10 @@ name = "bench_grep_query"
 ppath = "src/bin/bench_grep_query.rs"
 path = "src/bin/bench_grep_query.rs"
 
+[[bin]]
+name = "bench_memchr_vs_sz"
+path = "src/bin/bench_memchr_vs_sz.rs"
+
 [dependencies]
 # Workspace dependencies
 ahash = { workspace = true }

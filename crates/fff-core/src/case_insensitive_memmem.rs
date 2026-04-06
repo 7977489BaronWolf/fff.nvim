@@ -9,6 +9,38 @@
 //! both simultaneously, verify candidates.  This gives quadratic selectivity
 //! over the single-byte memchr2 approach.
 
+use stringzilla::sz;
+
+/// Iterator yielding byte positions matching any byte in a `Byteset`.
+/// Replaces `memchr::memchr_iter` / `memchr::memchr2_iter`.
+pub(crate) struct BytesetPositions<'a> {
+    haystack: &'a [u8],
+    byteset: sz::Byteset,
+    pos: usize,
+}
+
+impl<'a> BytesetPositions<'a> {
+    pub(crate) fn new(haystack: &'a [u8], bytes: &[u8]) -> Self {
+        Self {
+            haystack,
+            byteset: sz::Byteset::from_bytes(bytes),
+            pos: 0,
+        }
+    }
+}
+
+impl Iterator for BytesetPositions<'_> {
+    type Item = usize;
+
+    #[inline]
+    fn next(&mut self) -> Option<usize> {
+        let offset = sz::find_byteset(&self.haystack[self.pos..], self.byteset)?;
+        let abs = self.pos + offset;
+        self.pos = abs + 1;
+        Some(abs)
+    }
+}
+
 // this is stolen from the memchr2 crate
 const BYTE_FREQUENCIES: [u8; 256] = [
     55, 52, 51, 50, 49, 48, 47, 46, 45, 103, 242, 66, 67, 229, 44, 43, // 0x00
@@ -327,19 +359,15 @@ unsafe fn search_packed_pair_neon(
         let tail_end = last_start + rare_pos + 1;
         if tail_start < tail_end {
             let tail_space = &haystack[tail_start..tail_end];
-            if rare_byte.is_ascii_lowercase() {
-                for pos in memchr::memchr2_iter(rare_byte, ascii_swap_case(rare_byte), tail_space) {
-                    let candidate = offset + pos;
-                    if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
-                        return true;
-                    }
-                }
+            let bytes: &[u8] = if rare_byte.is_ascii_lowercase() {
+                &[rare_byte, ascii_swap_case(rare_byte)]
             } else {
-                for pos in memchr::memchr_iter(rare_byte, tail_space) {
-                    let candidate = offset + pos;
-                    if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
-                        return true;
-                    }
+                &[rare_byte]
+            };
+            for pos in BytesetPositions::new(tail_space, bytes) {
+                let candidate = offset + pos;
+                if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
+                    return true;
                 }
             }
         }
@@ -458,19 +486,15 @@ unsafe fn search_packed_pair_avx2(
         let tail_end = last_start + rare_pos + 1;
         if tail_start < tail_end {
             let tail_space = &haystack[tail_start..tail_end];
-            if rare_byte.is_ascii_lowercase() {
-                for pos in memchr::memchr2_iter(rare_byte, ascii_swap_case(rare_byte), tail_space) {
-                    let candidate = offset + pos;
-                    if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
-                        return true;
-                    }
-                }
+            let bytes: &[u8] = if rare_byte.is_ascii_lowercase() {
+                &[rare_byte, ascii_swap_case(rare_byte)]
             } else {
-                for pos in memchr::memchr_iter(rare_byte, tail_space) {
-                    let candidate = offset + pos;
-                    if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
-                        return true;
-                    }
+                &[rare_byte]
+            };
+            for pos in BytesetPositions::new(tail_space, bytes) {
+                let candidate = offset + pos;
+                if unsafe { verify_dispatch(ptr.add(candidate), needle_lower) } {
+                    return true;
                 }
             }
         }
@@ -544,18 +568,14 @@ pub fn search(haystack: &[u8], needle_lower: &[u8]) -> bool {
     let search_space = &haystack[..=haystack.len() - n];
     let first = needle_lower[0];
 
-    if first.is_ascii_lowercase() {
-        let alt = ascii_swap_case(first);
-        for pos in memchr::memchr2_iter(first, alt, search_space) {
-            if unsafe { verify_dispatch(haystack.as_ptr().add(pos), needle_lower) } {
-                return true;
-            }
-        }
+    let bytes: &[u8] = if first.is_ascii_lowercase() {
+        &[first, ascii_swap_case(first)]
     } else {
-        for pos in memchr::memchr_iter(first, search_space) {
-            if unsafe { verify_dispatch(haystack.as_ptr().add(pos), needle_lower) } {
-                return true;
-            }
+        &[first]
+    };
+    for pos in BytesetPositions::new(search_space, bytes) {
+        if unsafe { verify_dispatch(haystack.as_ptr().add(pos), needle_lower) } {
+            return true;
         }
     }
     false

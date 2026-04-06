@@ -13,6 +13,9 @@ use crate::{
     types::{ContentCacheBudget, FileItem},
 };
 use aho_corasick::AhoCorasick;
+use stringzilla::sz;
+
+
 pub use fff_grep::{
     Searcher, SearcherBuilder, Sink, SinkMatch,
     lines::{self, LineStep},
@@ -329,11 +332,11 @@ pub struct GrepSearchOptions {
 }
 
 #[derive(Clone, Copy)]
-struct GrepContext<'a, 'b> {
+struct GrepContext<'a> {
     total_files: usize,
     filtered_file_count: usize,
     budget: &'a ContentCacheBudget,
-    prefilter: Option<&'a memchr::memmem::Finder<'b>>,
+    prefilter: Option<&'a sz::Finder<'a>>,
     prefilter_case_insensitive: bool,
     is_cancelled: Option<&'a AtomicBool>,
 }
@@ -389,6 +392,8 @@ struct PlainTextMatcher<'a> {
     /// Case-folded needle bytes for case-insensitive matching.
     /// When case-sensitive, this is the original pattern bytes.
     needle: &'a [u8],
+    /// Pre-compiled finder for the case-sensitive fast path.
+    finder: &'a sz::Finder<'a>,
     case_insensitive: bool,
 }
 
@@ -400,11 +405,10 @@ impl Matcher for PlainTextMatcher<'_> {
         let hay = &haystack[at..];
 
         let found = if self.case_insensitive {
-            // ASCII case-insensitive: lowercase the haystack slice on the fly.
-            // We scan with a rolling window to avoid allocating a full copy.
+            // ASCII case-insensitive: scan for first-byte candidates, then verify.
             ascii_case_insensitive_find(hay, self.needle)
         } else {
-            memchr::memmem::find(hay, self.needle)
+            self.finder.find(hay)
         };
 
         Ok(found.map(|pos| Match::new(at + pos, at + pos + self.needle.len())))
@@ -437,14 +441,14 @@ fn ascii_case_insensitive_find(haystack: &[u8], needle_lower: &[u8]) -> Option<u
 
     // Single-byte needle: just find either case variant.
     if nlen == 1 {
-        return memchr::memchr2(first_lo, first_hi, haystack);
+        return sz::find_byte_from(haystack, &[first_lo, first_hi]);
     }
 
     let tail = &needle_lower[1..];
     let end = haystack.len() - nlen;
 
     // Scan for candidates where the first byte matches (either case).
-    for pos in memchr::memchr2_iter(first_lo, first_hi, &haystack[..=end]) {
+    for pos in case_insensitive_memmem::BytesetPositions::new(&haystack[..=end], &[first_lo, first_hi]) {
         // Verify the remaining bytes with bitwise ASCII case-insensitive compare.
         // For ASCII letters, (a ^ b) & ~0x20 == 0 when they match ignoring case.
         // For non-letters, exact equality is required; OR-ing with 0x20 maps both
@@ -657,7 +661,7 @@ fn truncate_display_bytes(bytes: &[u8]) -> &[u8] {
 /// No regex engine is involved at any point.
 struct PlainTextSink<'r> {
     state: SinkState,
-    finder: &'r memchr::memmem::Finder<'r>,
+    finder: &'r sz::Finder<'r>,
     pattern_len: u32,
     case_insensitive: bool,
 }
@@ -1059,7 +1063,7 @@ const PAGINATED_CHUNK_SIZE: usize = 512;
 fn perform_grep<'a, F>(
     files_to_search: &[&'a FileItem],
     options: &GrepSearchOptions,
-    ctx: &GrepContext<'_, '_>,
+    ctx: &GrepContext<'_>,
     search_file: F,
 ) -> GrepResult<'a>
 where
@@ -1130,7 +1134,7 @@ where
                     let found = if ctx.prefilter_case_insensitive {
                         case_insensitive_memmem::search_packed_pair(&content, pf.needle())
                     } else {
-                        pf.find(&content).is_some()
+                        pf.find(&*content).is_some()
                     };
                     if !found {
                         return None;
@@ -1781,7 +1785,6 @@ pub fn grep_search<'a>(
     } else {
         effective_pattern.as_bytes().to_vec()
     };
-    let finder = memchr::memmem::Finder::new(&finder_pattern);
     let pattern_len = finder_pattern.len() as u32;
 
     // Bigram prefiltering: query the inverted index + merge overlay.
@@ -1887,8 +1890,10 @@ pub fn grep_search<'a>(
 
     // `PlainTextMatcher` is used by the grep-searcher engine for line detection.
     // `PlainTextSink` / `RegexSink` handle highlight extraction independently.
+    let finder = sz::Finder::new(&finder_pattern);
     let plain_matcher = PlainTextMatcher {
         needle: &finder_pattern,
+        finder: &finder,
         case_insensitive,
     };
 
