@@ -501,7 +501,6 @@ mod tests {
     use crate::types::PaginationArgs;
     use fff_query_parser::QueryParser;
 
-
     fn create_test_file(path: &str, score: i32, modified: u64) -> (FileItem, Score) {
         let filename_start = path.rfind('/').map(|i| i + 1).unwrap_or(0) as u16;
         let file = FileItem::new_raw(
@@ -688,7 +687,6 @@ mod filename_bonus_tests {
     use super::*;
     use crate::types::PaginationArgs;
     use fff_query_parser::QueryParser;
-
 
     fn make_file(path: &str) -> FileItem {
         let filename_start = path.rfind('/').map(|i| i + 1).unwrap_or(0) as u16;

@@ -470,7 +470,10 @@ impl FffServer {
 
         if page_offset == 0 {
             if is_exact_match {
-                lines.push(format!("→ Read {} (exact match!)", top_item.relative_path()));
+                lines.push(format!(
+                    "→ Read {} (exact match!)",
+                    top_item.relative_path()
+                ));
             } else if scores.len() < 2 || scores[0].total > scores[1].total.saturating_mul(2) {
                 lines.push(format!(
                     "→ Read {} (best match — Read this file directly)",
