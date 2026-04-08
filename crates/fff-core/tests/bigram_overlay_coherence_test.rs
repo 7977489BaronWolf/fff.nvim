@@ -575,10 +575,6 @@ fn bigram_overlay_coherence_mixed_tombstones_and_overflow() {
     stop_picker(&shared_picker);
 }
 
-/// Comprehensive stress loop: edit base files, delete base files, and
-/// create new overflow files each round. Overflow grep is buggy so this
-/// test exposes both the working parts (base edits/deletes) and the
-/// broken part (overflow grep).
 #[test]
 fn bigram_overlay_coherence_full_stress_loop_with_overflow() {
     let tmp = TempDir::new().unwrap();

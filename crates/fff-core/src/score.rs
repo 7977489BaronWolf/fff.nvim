@@ -73,7 +73,7 @@ fn match_fuzzy_parts(
 
     let first_part_matches = match working_files {
         FileItems::All(files) => {
-            neo_frizbee::match_list_parallel(valid_parts[0], &files, options, max_threads)
+            neo_frizbee::match_list_parallel(valid_parts[0], files, options, max_threads)
         }
         FileItems::Filtered(files) => {
             neo_frizbee::match_list_parallel(valid_parts[0], files, options, max_threads)
