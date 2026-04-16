@@ -1407,17 +1407,17 @@ fn prepare_files_to_search<'a>(
     let prefiltered: Vec<&FileItem> = if constraints.is_empty() {
         files
             .iter()
-            .filter(|f| !f.is_binary() && f.size > 0 && f.size <= options.max_file_size)
+            .filter(|f| !f.is_binary() && !f.is_deleted() && f.size > 0 && f.size <= options.max_file_size)
             .collect()
     } else {
         match apply_constraints(files, constraints) {
             Some(constrained) => constrained
                 .into_iter()
-                .filter(|f| !f.is_binary() && f.size > 0 && f.size <= options.max_file_size)
+                .filter(|f| !f.is_binary() && !f.is_deleted() && f.size > 0 && f.size <= options.max_file_size)
                 .collect(),
             None => files
                 .iter()
-                .filter(|f| !f.is_binary() && f.size > 0 && f.size <= options.max_file_size)
+                .filter(|f| !f.is_binary() && !f.is_deleted() && f.size > 0 && f.size <= options.max_file_size)
                 .collect(),
         }
     };
@@ -2014,7 +2014,7 @@ pub fn grep_search<'a>(
                     let file_idx = base + bit;
                     if file_idx < files.len() {
                         let f = unsafe { files.get_unchecked(file_idx) };
-                        if !f.is_binary() && f.size <= options.max_file_size {
+                        if !f.is_binary() && !f.is_deleted() && f.size <= options.max_file_size {
                             result.push(f);
                         }
                     }
