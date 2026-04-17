@@ -47,3 +47,7 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+# Faster incremental builds during development
+[profile.dev]
+opt-level = 1
