@@ -49,5 +49,6 @@ codegen-units = 1
 strip = true
 
 # Faster incremental builds during development
+# bumped opt-level to 2 for slightly better perf while still keeping builds reasonably fast
 [profile.dev]
-opt-level = 1
+opt-level = 2
