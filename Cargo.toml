@@ -52,3 +52,5 @@ strip = true
 # during active development; bump to 1 if you need slightly better perf in debug
 [profile.dev]
 opt-level = 0
+# Enable debug info for better backtraces when debugging
+debug = true
