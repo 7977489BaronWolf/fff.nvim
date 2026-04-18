@@ -48,7 +48,7 @@ lto = true
 codegen-units = 1
 strip = true
 
-# Faster incremental builds during development
-# bumped opt-level to 2 for slightly better perf while still keeping builds reasonably fast
+# Dev profile: keeping opt-level at 1 to speed up incremental builds;
+# opt-level 2 was noticeably slow on my machine for iterative changes
 [profile.dev]
-opt-level = 2
+opt-level = 1
