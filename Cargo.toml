@@ -54,3 +54,5 @@ strip = true
 opt-level = 0
 # Enable debug info for better backtraces when debugging
 debug = true
+# Faster linking in dev builds (useful on Linux with mold or lld)
+split-debuginfo = "unpacked"
