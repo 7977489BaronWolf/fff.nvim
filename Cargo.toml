@@ -56,3 +56,5 @@ opt-level = 0
 debug = true
 # Faster linking in dev builds (useful on Linux with mold or lld)
 split-debuginfo = "unpacked"
+# Speed up dev builds by skipping incremental compilation artifacts for deps
+incremental = true
